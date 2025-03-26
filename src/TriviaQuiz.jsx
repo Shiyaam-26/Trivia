@@ -1,87 +1,104 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import AuthContext from "./context/AuthContext";
 
-const quizData = {
-  General: {
-    Easy: [
-      { question: "What is the capital of France?", options: ["Berlin", "Madrid", "Paris", "Lisbon"], answer: "Paris" },
-      { question: "What is 2 + 2?", options: ["3", "4", "5", "6"], answer: "4" },
-    ],
-    Medium: [
-      { question: "Which planet is known as the Red Planet?", options: ["Earth", "Mars", "Jupiter", "Venus"], answer: "Mars" },
-      { question: "What is the largest ocean on Earth?", options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"], answer: "Pacific Ocean" },
-    ],
-    Hard: [
-      { question: "Who painted the Mona Lisa?", options: ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Claude Monet"], answer: "Leonardo da Vinci" },
-      { question: "What is the smallest prime number?", options: ["0", "1", "2", "3"], answer: "2" },
-    ]
-  },
-  Science: {
-    Easy: [
-      { question: "What gas do plants absorb from the atmosphere?", options: ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"], answer: "Carbon Dioxide" },
-    ],
-    Medium: [
-      { question: "What is the chemical symbol for Gold?", options: ["Au", "Ag", "Fe", "Pb"], answer: "Au" },
-    ],
-    Hard: [
-      { question: "What is the powerhouse of the cell?", options: ["Nucleus", "Ribosome", "Mitochondria", "Golgi Apparatus"], answer: "Mitochondria" },
-    ]
-  }
-};
 
-export default function TriviaQuiz() {
-  const [genre, setGenre] = useState("General");
-  const [difficulty, setDifficulty] = useState("Easy");
-  const [currentQuestion, setCurrentQuestion] = useState(0);
+const TriviaQuiz = () => {
+  const { user } = useContext(AuthContext); // Moved inside the component
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState([]);
   const [score, setScore] = useState(0);
-  const [quizFinished, setQuizFinished] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
-  const questions = quizData[genre][difficulty];
+  const questions = [
+    {
+      question: "What is the capital of France?",
+      options: ["London", "Berlin", "Paris", "Madrid"],
+      correctAnswer: "Paris",
+    },
+    {
+      question: "Which planet is known as the Red Planet?",
+      options: ["Venus", "Mars", "Jupiter", "Saturn"],
+      correctAnswer: "Mars",
+    },
+    {
+      question: "What is the largest ocean on Earth?",
+      options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+      correctAnswer: "Pacific Ocean",
+    },
+  ];
 
-  const handleAnswer = (selectedOption) => {
-    if (selectedOption === questions[currentQuestion].answer) {
-      setScore(score + 1);
+  const handleAnswerSelect = (selectedAnswer) => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+
+    if (isCorrect) {
+      setScore((prevScore) => prevScore + 1);
     }
-    const nextQuestion = currentQuestion + 1;
-    if (nextQuestion < questions.length) {
-      setCurrentQuestion(nextQuestion);
+
+    setAnswers([
+      ...answers,
+      {
+        question: currentQuestion.question,
+        selectedAnswer,
+        correctAnswer: currentQuestion.correctAnswer,
+        isCorrect,
+      },
+    ]);
+
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
     } else {
-      setQuizFinished(true);
+      setShowResults(true);
     }
   };
 
+  const handleRestartQuiz = async () => {
+    try {
+      if (user) {
+        const response = await fetch("http://localhost:8000/api/submit-quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.userId, score }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to save score");
+        }
+      }
+    } catch (error) {
+      console.error("Error submitting quiz score:", error);
+    }
+
+    setCurrentQuestionIndex(0);
+    setAnswers([]);
+    setScore(0);
+    setShowResults(false);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white p-4">
-      {!quizFinished ? (
-        <div className="w-full max-w-md bg-gray-800 p-6 rounded-lg shadow-lg">
-          <h2 className="text-2xl font-bold mb-4">{questions[currentQuestion].question}</h2>
-          <div className="space-y-2">
-            {questions[currentQuestion].options.map((option, index) => (
-              <button
-                key={index}
-                onClick={() => handleAnswer(option)}
-                className="w-full p-3 bg-blue-600 rounded hover:bg-blue-700 transition"
-              >
+    <div className="quiz-container">
+      {showResults ? (
+        <div className="quiz-card">
+          <h1 className="quiz-title">Quiz Results</h1>
+          <p className="quiz-subtitle">Score: {score}/{questions.length}</p>
+          <button className="action-button" onClick={handleRestartQuiz}>
+            Play Again
+          </button>
+        </div>
+      ) : (
+        <div className="quiz-card">
+          <h2 className="question-text">{questions[currentQuestionIndex].question}</h2>
+          <div className="options-container">
+            {questions[currentQuestionIndex].options.map((option, index) => (
+              <button key={index} className="option-button" onClick={() => handleAnswerSelect(option)}>
                 {option}
               </button>
             ))}
           </div>
         </div>
-      ) : (
-        <div className="w-full max-w-md bg-gray-800 p-6 rounded-lg shadow-lg text-center">
-          <h2 className="text-2xl font-bold mb-4">Quiz Finished!</h2>
-          <p className="text-lg">Your score: {score} / {questions.length}</p>
-          <button
-            onClick={() => {
-              setCurrentQuestion(0);
-              setScore(0);
-              setQuizFinished(false);
-            }}
-            className="mt-4 p-3 bg-green-600 rounded hover:bg-green-700 transition"
-          >
-            Restart Quiz
-          </button>
-        </div>
       )}
     </div>
   );
-}
+};
+
+export default TriviaQuiz;

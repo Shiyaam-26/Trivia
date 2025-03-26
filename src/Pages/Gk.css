@@ -199,7 +199,7 @@
   }
   
   /* Responsive adjustments */
-  @media (max-width: 640px) {
+  @media (max-width: 1080px) {
     .quiz-card {
       padding: 1.5rem;
     }

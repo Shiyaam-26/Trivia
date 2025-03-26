@@ -1,18 +1,23 @@
-import React, { useState } from "react";
-import { useNavigate,useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import "./Gk.css";
 
 const Gk = () => {
-  const location = useLocation();
-  const userName = location.state?.userName || "Your";
   const navigate = useNavigate();
-  const GoToIntro = () => {
-    navigate('/');  // Redirect to the Intro page
-  };
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [score, setScore] = useState(0);
   const [showResults, setShowResults] = useState(false);
+  const [userName, setUserName] = useState("Guest");
+
+  // Retrieve username from localStorage on component mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("username"); // ✅ Corrected key
+    if (storedUser) {
+      setUserName(storedUser);
+    }
+  }, []);
 
   const questions = [
     {
@@ -74,6 +79,20 @@ const Gk = () => {
       setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
     } else {
       setShowResults(true);
+      submitScore();
+    }
+  };
+
+  // Submit the user's quiz score to the backend
+  const submitScore = async () => {
+    try {
+      await axios.post("http://localhost:5000/api/submit-score", {
+        userName,
+        category: "General Knowledge",
+        score,
+      });
+    } catch (error) {
+      console.error("Error submitting score:", error);
     }
   };
 
@@ -98,9 +117,7 @@ const Gk = () => {
             <div
               className="progress-fill"
               style={{
-                width: `${
-                  ((currentQuestionIndex + 1) / questions.length) * 100
-                }%`,
+                width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
               }}
             ></div>
           </div>
@@ -164,11 +181,10 @@ const Gk = () => {
         <button className="action-button" onClick={handleRestartQuiz}>
           Play Again
         </button>
-        <br/>
-        <button className="action-button" onClick={GoToIntro}>
-  Go to Home
-</button>
-
+        <br />
+        <button className="action-button" onClick={() => navigate("/")}>
+          Go to Home
+        </button>
       </div>
     );
   };
